@@ -1,0 +1,48 @@
+Last login: Mon Sep  2 20:29:26 on ttys002
+(base) marielaquintanar@Laptop-de-Mariela ~ % cd
+(base) marielaquintanar@Laptop-de-Mariela ~ % ls
+ACT INTEGRADORA 2			Postman
+Desktop					Public
+Documents				Tarea 1
+Downloads				act_integradora
+Library					clase 4
+M4. 3.2.T Modelando con blocking	evidencia1copy
+M4. 4.1.T Dado personalizado		github-classroom
+Movies					tarea
+Music					tarea.py
+My project				tarea3
+Pictures
+(base) marielaquintanar@Laptop-de-Mariela ~ % cd act_integradora
+(base) marielaquintanar@Laptop-de-Mariela act_integradora % touch .gitignore
+
+(base) marielaquintanar@Laptop-de-Mariela act_integradora % nano .gitignore
+
+
+
+
+
+
+  UW PICO 5.09                    File: .gitignore                    Modified  
+
+*.unitypackage
+*.app
+
+# Crashlytics generated file
+crashlytics-build.properties
+
+# Packed Addressables
+/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+
+# Temporary auto-generated Android Assets
+/[Aa]ssets/[Ss]treamingAssets/aa.meta
+/[Aa]ssets/[Ss]treamingAssets/aa/*
+
+
+
+
+
+
+
+
+^G Get Help  ^O WriteOut  ^R Read File ^Y Prev Pg   ^K Cut Text  ^C Cur Pos   
+^X Exit      ^J Justify   ^W Where is  ^V Next Pg   ^U UnCut Text^T To Spell  
