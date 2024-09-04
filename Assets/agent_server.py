@@ -2,7 +2,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import logging
 import json
 import threading
-from warehouse_agent import WarehouseModel, WarehouseAgent, WarehouseObject, WarehouseStack
+from Assets.agent_warehouse import WarehouseModel, WarehouseAgent, WarehouseObject, WarehouseStack
 
 simulation_state = None
 
@@ -60,10 +60,12 @@ def post_response(data):
     global simulation_state
     if 'init' in data and data['init']:
         parameters = {
-            'x': data.get('x', 10),
-            'y': data.get('y', 10),
-            'drone': data.get('drone', 1),
+            'M': data.get('M', 20),
+            'N': data.get('N', 20),
+            'drone_x': data.get('x', 10),
+            'drone_y': data.get('y', 10),
             'cameras': data.get('cameras', 2),
+            'patrol_route': data.get('patrol_route', [(10, 10), (10, 15), (15, 15), (15, 10)]),
         }
         simulation_state = WarehouseModel(parameters)
         simulation_state.setup()

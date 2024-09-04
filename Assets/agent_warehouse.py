@@ -57,6 +57,10 @@ class WarehouseCamera(ap.Agent):
     pass
 
 
+class WarehouseObstacle(ap.Agent):
+    pass
+
+
 def astar(grid, start, goal):
     open_set = []
     pos = grid.positions[start]
@@ -81,6 +85,10 @@ def astar(grid, start, goal):
                 if type(location) == np.record:
                     agent_set = location[0]
                     blocked = False
+                    for agent in agent_set:
+                        if isinstance(agent, WarehouseObstacle):
+                            blocked = True
+                            break
                     if blocked:
                         continue
                 tentative_g_score = g_score[current] + 1
@@ -100,10 +108,6 @@ def heuristic(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
-def euclidean(a, b):
-    return np.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
-
-
 def reconstruct_path(came_from, current):
     total_path = [current]
     while current in came_from:
@@ -114,15 +118,17 @@ def reconstruct_path(came_from, current):
 
 class WarehouseCamera(ap.Agent):
     def setup(self):
-        self.agentType = 2
+        self.agentType = 1
         self.active = False
 
 
 class WarehouseDrone(ap.Agent):
     def setup(self):
         self.agentType = 0
-        self.x = 0
-        self.y = 0
+        self.position = (0, 0)
+        self.patrol_route = []
+        self.current_patrol_target = -1
+        self.path = []
         self.rules = [
             self.rule_move,
         ]
@@ -139,99 +145,83 @@ class WarehouseDrone(ap.Agent):
                 if rule(act):
                     act()
 
-    def step(self, data):
+    def step(self, position, target, alert=False):
+        self.position = position
+        self.model.grid.move_to(self, position)
+        self.alert = alert
+        if self.alert:
+            self.target = target
         self.next()
 
     def rule_move(self, act):
         return act == self.move_towards_target
 
-    def move(self, target):
-        # TODO Change to direct movement from grid based
-        x, y = self.model.grid.positions[self]
-
-        while True:
-            nx, ny = target
-            dx, dy = self.direction
-            if x + dx == nx and y + dy == ny:
-                break
-
-        self.model.grid.move_by(self, self.direction)
+    def move(self):
+        self.model.grid.move_to(self, self.target)
         self.moves += 1
 
-    def find_nearest_object(self):
-        # TODO Adapt pathfinding to use euclidean distance
-        closest_object = None
-        shortest_path = None
-
-        for obj in self.model.objects:
-            try:
-                obj_pos = self.model.grid.positions[obj]
-            except KeyError:
-                continue
-            path = astar(self.model.grid, self, obj_pos)
-            if not closest_object or (path and len(path) < len(shortest_path)):
-                closest_object = obj
-                shortest_path = path
-
-        self.target = closest_object
-        return shortest_path
+    def find_shortest_path(self, target):
+        path = astar(self.model.grid, self, target)
+        if path and len(path) > 1:
+            self.path = path
 
     def patrol(self):
-        pass
+        if self.current_patrol_target == -1:
+            nearest = float('inf')
+            for i, coord in enumerate(self.patrol_route):
+                dist = heuristic(self.position, coord)
+                if dist < nearest:
+                    nearest = dist
+                    self.current_patrol_target = i
+        target = self.patrol_route[self.current_patrol_target]
+        self.find_shortest_path(target)
+        self.current_patrol_target += 1
 
     def move_towards_target(self):
         if self.alert:
-            path = self.find_nearest_object()
+            self.current_patrol_target = -1
+            self.find_shortest_path()
         else:
-            path = self.patrol()
-        if path and len(path) > 1:
-            next_position = path[1]
-            self.move(next_position)
+            self.patrol()
+        if self.target != self.position:
+            self.move()
 
 
 class WarehouseGuard(ap.Agent):
     def setup(self):
-        self.agentType = 0
+        self.agentType = 2
         self.alert = False
         self.controlling_camera = None
 
 
+class WarehouseObstacle(ap.Agent):
+    def setup(self):
+        self.agentType = 3
+
+
 class WarehouseModel(ap.Model):
-    def setup(self, x, y):
+    def setup(self):
+        self.grid = ap.Grid(self, (self.p.M, self.p.N), track_empty=True)
         self.drones = ap.AgentList(self, self.p.drones, WarehouseDrone)
         self.cameras = ap.AgentList(self, self.p.cameras, WarehouseCamera)
         self.guard = ap.AgentList(self, self.p.guards, WarehouseGuard)
+        self.obstacles = ap.AgentList(
+            self, self.p.obstacles, WarehouseObstacle)
 
-        # add in specific locations
+        self.grid.add_agents(self.drones, position=self.p.drone_positions)
+        self.grid.add_agents(self.obstacles, positions=[(5, 5)])
+        for drone, patrol in zip(self.drones, self.p.patrol_route):
+            drone.patrol_route = patrol
 
         self.steps = 0
 
-    def step(self):
-        self.robots.step()
+    def step(self, position, target, alert=False):
+        self.drones.step(position, target, alert)
         self.steps += 1
-        return self.grid.grid
-
-    def get_positions(self):
-        pass
+        return [drone.path for drone in self.drones]
 
     def end(self):
         return {
             'steps': self.steps,
-            'positions': self.get_positions()
+            'positions': [self.grid.positions[drone] for drone in self.drones],
         }
-
-
-# SIMULATION:
-
-
-# parameters = {
-# }
-
-
-# model = WarehouseModel(parameters)
-
-# Run with animation
-# model.run()
-
-# animation = ap.animate(model, fig, ax, animation_plot)
-# IPython.display.HTML(animation.to_jshtml())
