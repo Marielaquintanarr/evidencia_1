@@ -2,7 +2,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import logging
 import json
 import threading
-from Assets.agent_warehouse import WarehouseModel, WarehouseAgent, WarehouseObject, WarehouseStack
+from agent_warehouse import WarehouseModel
 
 simulation_state = None
 
@@ -58,35 +58,40 @@ def run(server_class=HTTPServer, handler_class=Server, port=8585):
 
 def post_response(data):
     global simulation_state
-    if 'init' in data and data['init']:
-        parameters = {
-            'M': data.get('M', 20),
-            'N': data.get('N', 20),
-            'drone_x': data.get('x', 10),
-            'drone_y': data.get('y', 10),
-            'cameras': data.get('cameras', 2),
-            'patrol_route': data.get('patrol_route', [(10, 10), (10, 15), (15, 15), (15, 10)]),
-        }
+    parameters = {
+        'M': data.get('M', 20),
+        'N': data.get('N', 20),
+        'drones': data.get('drones', 2),
+        'drone_positions': data.get('drone_positions', [(3, 3), (4, 9)]),
+        'patrol_routes': data.get('patrol_routes', [[(4, 4), (16, 16)], [(3, 1), (5, 4)]]),
+        'cameras': data.get('cameras', 2),
+        'guards': data.get('guards', 1),
+        'obstacles': data.get('obstacles', [((5, 5), (15, 15))]),
+    }
+    try:
         simulation_state = WarehouseModel(parameters)
         simulation_state.setup()
-        return {"message": "Simulation initialized"}
-    return {"message": "Use GET request to step through simulation"}
+    except Exception as e:
+        return {"error": str(e)}
+    return {"message": "Simulation initialized"}
 
 
 def put_response(data):
     global simulation_state
-    if ('step' in data and data['step']) and ('alert' in data and 'location' in data):
-        response_data = get_response(data['alert'], data['location'])
-        return response_data
-    return {"error": "Invalid PUT request"}
+    response_data = get_response(
+        data.get('drone_positions', None),
+        data.get('alert', False),
+        data.get('target', None))
+    return response_data
 
 
-def get_response(alert, location):
+def get_response(drone_locations=None, alert=False, target=None):
     global simulation_state
     if simulation_state is None:
         return {"error": "Simulation not initialized. Send a POST request to initialize."}
 
-    step_result = simulation_state.step(alert, location)
+    step_result = simulation_state.step(
+        drone_locations, target=target, alert=alert)
     if step_result is None:
         return {"message": "Simulation complete"}
     else:
