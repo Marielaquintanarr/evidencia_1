@@ -95,9 +95,13 @@ def get_response(drone_locations=None, alert=False, target=None):
     if step_result is None:
         return {"message": "Simulation complete"}
     else:
+        path = [{'x': x[0], 'z': x[1]} for x in step_result[0]]
+        print({
+            "positions": path
+        }
+        )
         return {
-            "step": simulation_state.steps,
-            "positions": step_result
+            "positions": path
         }
 
 

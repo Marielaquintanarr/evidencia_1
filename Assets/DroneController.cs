@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -5,11 +6,12 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterController))]
 public class FPSController : MonoBehaviour
 {
-    public Transform TargetLocation;
+    public Transform OriginLocation;
     public Camera playerCamera;
     public float walkSpeed = 6f;
     public float lookSpeed = 2f;
     public float lookXLimit = 45f;
+    public bool isMoving = false;
 
     Vector3 moveDirection = Vector3.zero;
     float rotationX = 0;
@@ -26,10 +28,6 @@ public class FPSController : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        // Example coordinates to add to the queue
-        targetQueue.Enqueue(new Vector3(2f, transform.position.y, 3f));
-        targetQueue.Enqueue(new Vector3(1f, transform.position.y, 5f));
-        targetQueue.Enqueue(new Vector3(10f, transform.position.y, 2f));
     }
 
     void Update()
@@ -57,27 +55,39 @@ public class FPSController : MonoBehaviour
         }
         #endregion
 
-        if (Input.GetKeyDown(KeyCode.Space) && targetQueue.Count > 0)
-        {
-            // Get the next target position from the queue
-            Vector3 nextTarget = targetQueue.Dequeue();
-
-            // Add the current transform's x and z to the dequeued target position
-            Vector3 targetWithOffset = new Vector3(nextTarget.x + transform.position.x, transform.position.y, nextTarget.z + transform.position.z);
-
-            // Start moving to the new position with the offset
-            StartCoroutine(MoveTo(targetWithOffset));
-        }
     }
 
-    // Coroutine to move to the specified position
-    public IEnumerator MoveTo(Vector3 targetPosition)
+    public Vector3 getGridPosition()
     {
-        while (Vector3.Distance(transform.position, targetPosition) > 0.1f) // Check if close enough to the target
-        {
-            Vector3 direction = (targetPosition - transform.position).normalized;
-            characterController.Move(direction * walkSpeed * Time.deltaTime);
-            yield return null; // Wait for the next frame
-        }
+        int gridX = Mathf.RoundToInt(OriginLocation.position.x - transform.position.x);
+        int gridZ = Mathf.RoundToInt(OriginLocation.position.z - transform.position.z);
+
+        return new Vector3(Math.Abs(gridX), 0, Math.Abs(gridZ));
     }
+
+    private IEnumerator MoveTo(int x, int z)
+    {
+        Vector3 targetPosition = new Vector3(OriginLocation.position.x - x, transform.position.y, OriginLocation.position.z - z);
+
+        while (Vector3.Distance(transform.position, targetPosition) > .5f)
+        {
+            transform.position = Vector3.MoveTowards(transform.position, targetPosition, walkSpeed * Time.deltaTime);
+            yield return null; // Yield here to wait for the next frame
+        }
+
+        transform.position = targetPosition;
+    }
+
+    public IEnumerator MoveThroughPositions(List<DronePosition> positions)
+    {
+        isMoving = true;
+        foreach (var pair in positions)
+        {
+            yield return StartCoroutine(MoveTo(pair.x, pair.z));
+        }
+        yield return new WaitForSeconds(5f);
+        isMoving = false;
+    }
+
+
 }
